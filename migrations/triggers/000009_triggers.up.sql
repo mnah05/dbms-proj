@@ -1,6 +1,5 @@
 -- +migrate Up
 -- Prevent double booking for the same room
-DELIMITER //
 CREATE TRIGGER prevent_double_booking_insert
 BEFORE INSERT ON Reservation
 FOR EACH ROW
@@ -15,10 +14,8 @@ BEGIN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Room is already booked for these dates';
     END IF;
-END //
-DELIMITER ;
+END;
 
-DELIMITER //
 CREATE TRIGGER prevent_double_booking_update
 BEFORE UPDATE ON Reservation
 FOR EACH ROW
@@ -34,5 +31,4 @@ BEGIN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Room is already booked for these dates';
     END IF;
-END //
-DELIMITER ;
+END;
