@@ -239,6 +239,7 @@ type Customer struct {
 	Address       sql.NullString
 	LoyaltyPoints int32
 	CreatedAt     sql.NullTime
+	PasswordHash  string
 }
 
 type Payment struct {

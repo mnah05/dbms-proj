@@ -11,15 +11,16 @@ import (
 )
 
 const createCustomer = `-- name: CreateCustomer :execresult
-INSERT INTO Customer (first_name, last_name, email, phone, address) VALUES (?, ?, ?, ?, ?)
+INSERT INTO Customer (first_name, last_name, email, phone, address, password_hash) VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type CreateCustomerParams struct {
-	FirstName string
-	LastName  string
-	Email     string
-	Phone     string
-	Address   sql.NullString
+	FirstName    string
+	LastName     string
+	Email        string
+	Phone        string
+	Address      sql.NullString
+	PasswordHash string
 }
 
 func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) (sql.Result, error) {
@@ -29,11 +30,12 @@ func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) 
 		arg.Email,
 		arg.Phone,
 		arg.Address,
+		arg.PasswordHash,
 	)
 }
 
 const getCustomerByEmail = `-- name: GetCustomerByEmail :one
-SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points, created_at FROM Customer WHERE email = ?
+SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points, created_at, password_hash FROM Customer WHERE email = ?
 `
 
 func (q *Queries) GetCustomerByEmail(ctx context.Context, email string) (Customer, error) {
@@ -48,12 +50,13 @@ func (q *Queries) GetCustomerByEmail(ctx context.Context, email string) (Custome
 		&i.Address,
 		&i.LoyaltyPoints,
 		&i.CreatedAt,
+		&i.PasswordHash,
 	)
 	return i, err
 }
 
 const getCustomerByID = `-- name: GetCustomerByID :one
-SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points, created_at FROM Customer WHERE customer_id = ?
+SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points, created_at, password_hash FROM Customer WHERE customer_id = ?
 `
 
 func (q *Queries) GetCustomerByID(ctx context.Context, customerID int32) (Customer, error) {
@@ -68,12 +71,13 @@ func (q *Queries) GetCustomerByID(ctx context.Context, customerID int32) (Custom
 		&i.Address,
 		&i.LoyaltyPoints,
 		&i.CreatedAt,
+		&i.PasswordHash,
 	)
 	return i, err
 }
 
 const listCustomers = `-- name: ListCustomers :many
-SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points, created_at FROM Customer ORDER BY customer_id
+SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points, created_at, password_hash FROM Customer ORDER BY customer_id
 `
 
 func (q *Queries) ListCustomers(ctx context.Context) ([]Customer, error) {
@@ -94,6 +98,7 @@ func (q *Queries) ListCustomers(ctx context.Context) ([]Customer, error) {
 			&i.Address,
 			&i.LoyaltyPoints,
 			&i.CreatedAt,
+			&i.PasswordHash,
 		); err != nil {
 			return nil, err
 		}
@@ -109,7 +114,7 @@ func (q *Queries) ListCustomers(ctx context.Context) ([]Customer, error) {
 }
 
 const searchCustomersByName = `-- name: SearchCustomersByName :many
-SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points, created_at FROM Customer WHERE first_name LIKE ? OR last_name LIKE ? ORDER BY customer_id
+SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points, created_at, password_hash FROM Customer WHERE first_name LIKE ? OR last_name LIKE ? ORDER BY customer_id
 `
 
 type SearchCustomersByNameParams struct {
@@ -135,6 +140,7 @@ func (q *Queries) SearchCustomersByName(ctx context.Context, arg SearchCustomers
 			&i.Address,
 			&i.LoyaltyPoints,
 			&i.CreatedAt,
+			&i.PasswordHash,
 		); err != nil {
 			return nil, err
 		}

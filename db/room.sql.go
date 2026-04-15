@@ -42,12 +42,12 @@ ORDER BY room_number
 `
 
 type GetAvailableRoomsParams struct {
-	CheckInDate  time.Time
 	CheckOutDate time.Time
+	CheckInDate  time.Time
 }
 
 func (q *Queries) GetAvailableRooms(ctx context.Context, arg GetAvailableRoomsParams) ([]Room, error) {
-	rows, err := q.db.QueryContext(ctx, getAvailableRooms, arg.CheckInDate, arg.CheckOutDate)
+	rows, err := q.db.QueryContext(ctx, getAvailableRooms, arg.CheckOutDate, arg.CheckInDate)
 	if err != nil {
 		return nil, err
 	}
@@ -89,12 +89,12 @@ ORDER BY room_number
 
 type GetAvailableRoomsByTypeParams struct {
 	RoomType     RoomRoomType
-	CheckInDate  time.Time
 	CheckOutDate time.Time
+	CheckInDate  time.Time
 }
 
 func (q *Queries) GetAvailableRoomsByType(ctx context.Context, arg GetAvailableRoomsByTypeParams) ([]Room, error) {
-	rows, err := q.db.QueryContext(ctx, getAvailableRoomsByType, arg.RoomType, arg.CheckInDate, arg.CheckOutDate)
+	rows, err := q.db.QueryContext(ctx, getAvailableRoomsByType, arg.RoomType, arg.CheckOutDate, arg.CheckInDate)
 	if err != nil {
 		return nil, err
 	}

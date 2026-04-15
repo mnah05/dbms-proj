@@ -22,7 +22,7 @@ UPDATE Reservation SET status = 'cancelled' WHERE reservation_id = ? AND custome
 
 -- name: CheckRoomAvailabilityForUpdate :one
 SELECT COUNT(*) AS count FROM Reservation
-WHERE room_id = ?
+WHERE room_id = sqlc.arg(room_id)
 AND status NOT IN ('cancelled', 'checked_out')
-AND check_in_date < ? AND check_out_date > ?
+AND check_in_date < sqlc.arg(check_out_date) AND check_out_date > sqlc.arg(check_in_date)
 FOR UPDATE;

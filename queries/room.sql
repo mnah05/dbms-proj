@@ -9,17 +9,17 @@ SELECT * FROM Room
 WHERE room_id NOT IN (
     SELECT room_id FROM Reservation
     WHERE status NOT IN ('cancelled', 'checked_out')
-    AND check_in_date < ? AND check_out_date > ?
+    AND check_in_date < sqlc.arg(check_out_date) AND check_out_date > sqlc.arg(check_in_date)
 )
 ORDER BY room_number;
 
 -- name: GetAvailableRoomsByType :many
 SELECT * FROM Room
-WHERE room_type = ?
+WHERE room_type = sqlc.arg(room_type)
 AND room_id NOT IN (
     SELECT room_id FROM Reservation
     WHERE status NOT IN ('cancelled', 'checked_out')
-    AND check_in_date < ? AND check_out_date > ?
+    AND check_in_date < sqlc.arg(check_out_date) AND check_out_date > sqlc.arg(check_in_date)
 )
 ORDER BY room_number;
 

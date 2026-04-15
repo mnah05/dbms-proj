@@ -35,12 +35,12 @@ FOR UPDATE
 
 type CheckRoomAvailabilityForUpdateParams struct {
 	RoomID       int32
-	CheckInDate  time.Time
 	CheckOutDate time.Time
+	CheckInDate  time.Time
 }
 
 func (q *Queries) CheckRoomAvailabilityForUpdate(ctx context.Context, arg CheckRoomAvailabilityForUpdateParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, checkRoomAvailabilityForUpdate, arg.RoomID, arg.CheckInDate, arg.CheckOutDate)
+	row := q.db.QueryRowContext(ctx, checkRoomAvailabilityForUpdate, arg.RoomID, arg.CheckOutDate, arg.CheckInDate)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

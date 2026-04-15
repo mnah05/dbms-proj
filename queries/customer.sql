@@ -5,7 +5,7 @@ SELECT * FROM Customer WHERE email = ?;
 SELECT * FROM Customer WHERE customer_id = ?;
 
 -- name: CreateCustomer :execresult
-INSERT INTO Customer (first_name, last_name, email, phone, address) VALUES (?, ?, ?, ?, ?);
+INSERT INTO Customer (first_name, last_name, email, phone, address, password_hash) VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: ListCustomers :many
 SELECT * FROM Customer ORDER BY customer_id;

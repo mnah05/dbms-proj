@@ -109,8 +109,10 @@ func customerLogin() {
 		return
 	}
 
-	_ = password
-	_ = customer
+	if err := bcrypt.CompareHashAndPassword([]byte(customer.PasswordHash), []byte(password)); err != nil {
+		fmt.Println("Invalid password.")
+		return
+	}
 
 	fmt.Printf("\nWelcome, %s %s!\n", customer.FirstName, customer.LastName)
 	s := session{isCustomer: true, custID: customer.CustomerID, name: customer.FirstName}
@@ -128,18 +130,27 @@ func customerRegister() {
 	phone := readLine()
 	fmt.Print("Address (optional): ")
 	addr := readLine()
+	fmt.Print("Password: ")
+	password := readLine()
 
 	var addrSQL sql.NullString
 	if addr != "" {
 		addrSQL = sql.NullString{String: addr, Valid: true}
 	}
 
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Printf("Password hashing failed: %v\n", err)
+		return
+	}
+
 	result, err := queries.CreateCustomer(ctx, db.CreateCustomerParams{
-		FirstName: first,
-		LastName:  last,
-		Email:     email,
-		Phone:     phone,
-		Address:   addrSQL,
+		FirstName:    first,
+		LastName:     last,
+		Email:        email,
+		Phone:        phone,
+		Address:      addrSQL,
+		PasswordHash: string(hashedPassword),
 	})
 	if err != nil {
 		fmt.Printf("Registration failed: %v\n", err)
@@ -352,11 +363,20 @@ func bookRoom(s session) {
 	fmt.Print("Number of guests: ")
 	guests := readInt()
 
-	room, err := queries.GetRoomByID(ctx, roomID)
-	if err != nil {
-		fmt.Println("Room not found.")
+	var selectedRoom db.Room
+	found := false
+	for _, r := range rooms {
+		if r.RoomID == roomID {
+			selectedRoom = r
+			found = true
+			break
+		}
+	}
+	if !found {
+		fmt.Println("Room not available for the selected dates.")
 		return
 	}
+	room := selectedRoom
 	if guests > room.MaxOccupancy {
 		fmt.Printf("Max occupancy for this room is %d.\n", room.MaxOccupancy)
 		return
