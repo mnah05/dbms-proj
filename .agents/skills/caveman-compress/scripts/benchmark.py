@@ -11,6 +11,7 @@ except ImportError:
 
 try:
     import tiktoken
+
     _enc = tiktoken.get_encoding("o200k_base")
 except ImportError:
     _enc = None
@@ -63,7 +64,11 @@ def main():
 
     rows = []
     for orig in sorted(tests_dir.glob("*.original.md")):
-        comp = orig.with_name(orig.stem.removesuffix(".original") + ".md")
+        # Python 3.8+ compatible: use replace instead of removesuffix
+        stem = orig.stem
+        if stem.endswith(".original"):
+            stem = stem[:-9]  # Remove ".original" suffix
+        comp = orig.with_name(stem + ".md")
         if comp.exists():
             rows.append(benchmark_pair(orig, comp))
 

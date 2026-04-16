@@ -9,8 +9,6 @@ help:
 	@echo "  make migrate-down   - Rollback last migration"
 	@echo "  make migrate-create - Create new migration (use NAME=migration_name)"
 	@echo "  make migrate-version- Show current migration version"
-	@echo "  make dev            - Run Wails in dev mode"
-	@echo "  make build          - Build Wails application"
 	@echo "  make test           - Run Go tests"
 	@echo "  make lint           - Run Go linter"
 
@@ -37,8 +35,6 @@ migrate-create:
 
 migrate-version:
 	./migrate.sh version
-
-# Development
 
 # Testing and linting
 test:

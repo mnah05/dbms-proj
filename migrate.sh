@@ -34,7 +34,8 @@ if ! command -v migrate &> /dev/null; then
 fi
 
 # Debug output (can be disabled)
-if [ "${MIGRATE_DEBUG:-0}" = "1" ]; then
+# Support both MIGRATE_DEBUG=1 and MIGRATE_DEBUG=true
+if [ "${MIGRATE_DEBUG:-0}" = "1" ] || [ "${MIGRATE_DEBUG:-false}" = "true" ]; then
     echo "Script directory: $SCRIPT_DIR"
     echo "DB_URL: $DB_URL"
     echo "Migrations dir: $MIGRATIONS_DIR"

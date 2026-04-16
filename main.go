@@ -6,7 +6,10 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"dbms-proj/db"
@@ -21,10 +24,14 @@ const (
 )
 
 var (
-	dbConn  *sql.DB
-	queries *db.Queries
-	reader  *bufio.Reader
-	ctx     = context.Background()
+	dbConn        *sql.DB
+	queries       *db.Queries
+	reader        *bufio.Reader
+	ctx           context.Context
+	cancelCtx     context.CancelFunc
+	loginMutex    sync.Mutex
+	loginAttempts = make(map[string][]time.Time)
+	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 )
 
 type session struct {
@@ -38,7 +45,7 @@ type session struct {
 func main() {
 	_ = godotenv.Load()
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=UTC",
 		env("DB_USER", "app_user"),
 		env("DB_PASSWORD", "app_pass"),
 		env("DB_HOST", "localhost"),
@@ -54,10 +61,19 @@ func main() {
 	}
 	defer dbConn.Close()
 
+	// Configure connection pool
+	dbConn.SetMaxOpenConns(25)
+	dbConn.SetMaxIdleConns(5)
+	dbConn.SetConnMaxLifetime(5 * time.Minute)
+
 	if err := dbConn.Ping(); err != nil {
 		fmt.Printf("Database unreachable: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Create context with timeout for operations
+	ctx, cancelCtx = context.WithCancel(context.Background())
+	defer cancelCtx()
 
 	queries = db.New(dbConn)
 	reader = bufio.NewReader(os.Stdin)
@@ -102,21 +118,47 @@ func mainMenu() {
 }
 
 func customerLogin() {
+	loginMutex.Lock()
+	defer loginMutex.Unlock()
+
 	fmt.Print("Email: ")
-	email := readLine()
+	email := strings.TrimSpace(readLine())
+
+	// Rate limiting check
+	now := time.Now()
+	attempts := loginAttempts[email]
+	// Remove attempts older than 5 minutes
+	validAttempts := []time.Time{}
+	for _, t := range attempts {
+		if now.Sub(t) < 5*time.Minute {
+			validAttempts = append(validAttempts, t)
+		}
+	}
+	loginAttempts[email] = validAttempts
+
+	if len(validAttempts) >= 5 {
+		fmt.Println("Too many failed login attempts. Please try again in 5 minutes.")
+		return
+	}
+
 	fmt.Print("Password: ")
 	password := readLine()
 
 	customer, err := queries.GetCustomerByEmail(ctx, email)
 	if err != nil {
+		loginAttempts[email] = append(loginAttempts[email], now)
 		fmt.Println("Customer not found. Please register first.")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(customer.PasswordHash), []byte(password)); err != nil {
+		loginAttempts[email] = append(loginAttempts[email], now)
 		fmt.Println("Invalid password.")
 		return
 	}
+
+	// Clear attempts on successful login
+	delete(loginAttempts, email)
 
 	fmt.Printf("\nWelcome, %s %s!\n", customer.FirstName, customer.LastName)
 	s := session{isCustomer: true, custID: customer.CustomerID, name: customer.FirstName}
@@ -125,17 +167,46 @@ func customerLogin() {
 
 func customerRegister() {
 	fmt.Print("First Name: ")
-	first := readLine()
+	first := strings.TrimSpace(readLine())
+	if first == "" {
+		fmt.Println("Error: First name is required.")
+		return
+	}
+
 	fmt.Print("Last Name: ")
-	last := readLine()
+	last := strings.TrimSpace(readLine())
+	if last == "" {
+		fmt.Println("Error: Last name is required.")
+		return
+	}
+
 	fmt.Print("Email: ")
-	email := readLine()
+	email := strings.TrimSpace(readLine())
+	if email == "" {
+		fmt.Println("Error: Email is required.")
+		return
+	}
+	if !emailRegex.MatchString(email) {
+		fmt.Println("Error: Invalid email format.")
+		return
+	}
+
 	fmt.Print("Phone: ")
-	phone := readLine()
+	phone := strings.TrimSpace(readLine())
+	if phone == "" {
+		fmt.Println("Error: Phone is required.")
+		return
+	}
+
 	fmt.Print("Address (optional): ")
 	addr := readLine()
+
 	fmt.Print("Password: ")
 	password := readLine()
+	if password == "" {
+		fmt.Println("Error: Password is required.")
+		return
+	}
 
 	var addrSQL sql.NullString
 	if addr != "" {
@@ -324,6 +395,10 @@ func viewAvailableRooms() {
 	fmt.Printf("\n%d room(s) available.\n", len(rooms))
 }
 
+// bookRoom handles room booking with optimistic locking pattern
+// NOTE: There's a potential race condition between room display and booking.
+// Another user could book the same room after we display available rooms.
+// The CheckRoomAvailabilityForUpdate query inside the transaction handles this.
 func bookRoom(s session) {
 	fmt.Print("Check-in date (YYYY-MM-DD): ")
 	ci := readLine()
@@ -367,9 +442,17 @@ func bookRoom(s session) {
 	}
 
 	fmt.Print("Enter Room ID: ")
-	roomID := readInt()
+	roomID, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 	fmt.Print("Number of guests: ")
-	guests := readInt()
+	guests, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
 	var selectedRoom db.Room
 	found := false
@@ -454,7 +537,11 @@ func promptPayment(s session, resID int32, priceStr string, checkIn, checkOut ti
 		return
 	}
 
-	price := parseDecimal(priceStr)
+	price, err := parseDecimal(priceStr)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 	nights := int(checkOut.Sub(checkIn).Hours() / 24)
 	if nights <= 0 {
 		nights = 1
@@ -489,7 +576,7 @@ func promptPayment(s session, resID int32, priceStr string, checkIn, checkOut ti
 		baddrSQL = sql.NullString{String: baddr, Valid: true}
 	}
 
-	_, err := queries.CreatePayment(ctx, db.CreatePaymentParams{
+	_, err = queries.CreatePayment(ctx, db.CreatePaymentParams{
 		ReservationID:  resID,
 		Amount:         fmt.Sprintf("%.2f", total),
 		Method:         method,
@@ -556,20 +643,39 @@ func viewMyReservations(s session) {
 func cancelReservation(s session) {
 	viewMyReservations(s)
 	fmt.Print("Enter Reservation ID to cancel: ")
-	resID := readInt()
-
-	payment, pErr := queries.GetPaymentByReservation(ctx, resID)
-	if pErr == nil && payment.Status == db.PaymentStatusCompleted {
-		_ = queries.RefundPayment(ctx, resID)
-		fmt.Println("Payment will be refunded.")
+	resID, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
 	}
 
-	err := queries.CancelReservation(ctx, db.CancelReservationParams{
+	// First verify the reservation belongs to this customer
+	res, err := queries.GetReservationByID(ctx, resID)
+	if err != nil {
+		fmt.Println("Reservation not found.")
+		return
+	}
+	if res.CustomerID != s.custID {
+		fmt.Println("Unauthorized: This reservation does not belong to you.")
+		return
+	}
+
+	// Check for existing payment and refund if needed
+	payment, pErr := queries.GetPaymentByReservation(ctx, resID)
+	if pErr == nil && payment.Status == db.PaymentStatusCompleted {
+		// Check if not already refunded
+		if payment.Status != db.PaymentStatusRefunded {
+			_ = queries.RefundPayment(ctx, resID)
+			fmt.Println("Payment will be refunded.")
+		}
+	}
+
+	err = queries.CancelReservation(ctx, db.CancelReservationParams{
 		ReservationID: resID,
 		CustomerID:    s.custID,
 	})
 	if err != nil {
-		fmt.Printf("Cancel failed (check reservation ID): %v\n", err)
+		fmt.Printf("Cancel failed: %v\n", err)
 		return
 	}
 	fmt.Println("Reservation cancelled successfully.")
@@ -578,7 +684,11 @@ func cancelReservation(s session) {
 func makePayment(s session) {
 	viewMyReservations(s)
 	fmt.Print("Enter Reservation ID to pay: ")
-	resID := readInt()
+	resID, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
 	res, err := queries.GetReservationByID(ctx, resID)
 	if err != nil {
@@ -690,9 +800,13 @@ func viewReservationsByStatus() {
 func updateReservationStatus(status db.ReservationStatus) {
 	viewAllReservations()
 	fmt.Printf("Enter Reservation ID to set to %s: ", status)
-	resID := readInt()
+	resID, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
-	err := queries.UpdateReservationStatus(ctx, db.UpdateReservationStatusParams{
+	err = queries.UpdateReservationStatus(ctx, db.UpdateReservationStatusParams{
 		Status:        status,
 		ReservationID: resID,
 	})
@@ -724,9 +838,13 @@ func updateReservationStatusCustom() {
 	}
 
 	fmt.Print("Enter Reservation ID: ")
-	resID := readInt()
+	resID, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
-	err := queries.UpdateReservationStatus(ctx, db.UpdateReservationStatusParams{
+	err = queries.UpdateReservationStatus(ctx, db.UpdateReservationStatusParams{
 		Status:        status,
 		ReservationID: resID,
 	})
@@ -773,7 +891,11 @@ func addRoom() {
 	fmt.Print("Price per night: ")
 	price := readLine()
 	fmt.Print("Max occupancy: ")
-	occ := readInt()
+	occ, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
 	result, err := queries.CreateRoom(ctx, db.CreateRoomParams{
 		RoomNumber:    num,
@@ -797,9 +919,13 @@ func addRoom() {
 func updateRoom() {
 	viewAllRooms()
 	fmt.Print("Enter Room ID to update: ")
-	roomID := readInt()
+	roomID, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
-	_, err := queries.GetRoomByID(ctx, roomID)
+	_, err = queries.GetRoomByID(ctx, roomID)
 	if err != nil {
 		fmt.Println("Room not found.")
 		return
@@ -826,7 +952,11 @@ func updateRoom() {
 	fmt.Print("New price per night: ")
 	price := readLine()
 	fmt.Print("New max occupancy: ")
-	occ := readInt()
+	occ, err := readInt()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
 	err = queries.UpdateRoom(ctx, db.UpdateRoomParams{
 		RoomNumber:    num,
@@ -860,6 +990,9 @@ func viewAllCustomers() {
 func searchCustomers() {
 	fmt.Print("Search name: ")
 	name := readLine()
+	// Escape SQL wildcard characters to prevent injection
+	name = strings.ReplaceAll(name, "%", "\\%")
+	name = strings.ReplaceAll(name, "_", "\\_")
 	pattern := "%" + name + "%"
 
 	customers, err := queries.SearchCustomersByName(ctx, db.SearchCustomersByNameParams{
@@ -939,10 +1072,13 @@ func readLine() string {
 	return strings.TrimSpace(line)
 }
 
-func readInt() int32 {
-	var n int32
-	fmt.Sscan(readLine(), &n)
-	return n
+func readInt() (int32, error) {
+	line := readLine()
+	n, err := strconv.ParseInt(line, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid integer: %s", line)
+	}
+	return int32(n), nil
 }
 
 func nullStr(ns sql.NullString) string {
@@ -952,8 +1088,10 @@ func nullStr(ns sql.NullString) string {
 	return "-"
 }
 
-func parseDecimal(s string) float64 {
-	var f float64
-	fmt.Sscan(s, &f)
-	return f
+func parseDecimal(s string) (float64, error) {
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid decimal: %s", s)
+	}
+	return f, nil
 }
