@@ -16,6 +16,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const (
+	LoyaltyPointsPerNight = 10
+)
+
 var (
 	dbConn  *sql.DB
 	queries *db.Queries
@@ -157,7 +161,11 @@ func customerRegister() {
 		return
 	}
 
-	id, _ := result.LastInsertId()
+	id, err := result.LastInsertId()
+	if err != nil {
+		fmt.Printf("Error getting customer ID: %v\n", err)
+		return
+	}
 	fmt.Printf("Registration successful! Your customer ID is %d.\n", id)
 }
 
@@ -387,7 +395,11 @@ func bookRoom(s session) {
 		fmt.Printf("Error starting transaction: %v\n", err)
 		return
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
 
 	txQueries := queries.WithTx(tx)
 
@@ -419,7 +431,11 @@ func bookRoom(s session) {
 		return
 	}
 
-	resID, _ := result.LastInsertId()
+	resID, err := result.LastInsertId()
+	if err != nil {
+		fmt.Printf("Error getting reservation ID: %v\n", err)
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		fmt.Printf("Error committing reservation: %v\n", err)
@@ -488,17 +504,27 @@ func promptPayment(s session, resID int32, priceStr string, checkIn, checkOut ti
 		return
 	}
 
-	_ = queries.UpdateReservationStatus(ctx, db.UpdateReservationStatusParams{
+	if err := queries.UpdateReservationStatus(ctx, db.UpdateReservationStatusParams{
 		Status:        db.ReservationStatusConfirmed,
 		ReservationID: resID,
-	})
+	}); err != nil {
+		fmt.Printf("Error updating reservation status: %v\n", err)
+		return
+	}
 
-	cust, _ := queries.GetCustomerByID(ctx, s.custID)
-	points := int32(nights) * 10
-	queries.UpdateCustomerLoyaltyPoints(ctx, db.UpdateCustomerLoyaltyPointsParams{
+	cust, err := queries.GetCustomerByID(ctx, s.custID)
+	if err != nil {
+		fmt.Printf("Error getting customer: %v\n", err)
+		return
+	}
+	points := int32(nights) * LoyaltyPointsPerNight
+	if err := queries.UpdateCustomerLoyaltyPoints(ctx, db.UpdateCustomerLoyaltyPointsParams{
 		LoyaltyPoints: cust.LoyaltyPoints + points,
 		CustomerID:    s.custID,
-	})
+	}); err != nil {
+		fmt.Printf("Error updating loyalty points: %v\n", err)
+		return
+	}
 
 	fmt.Printf("Payment successful! Reservation #%d is now confirmed.\n", resID)
 	fmt.Printf("You earned %d loyalty points!\n", points)
@@ -760,7 +786,11 @@ func addRoom() {
 		return
 	}
 
-	id, _ := result.LastInsertId()
+	id, err := result.LastInsertId()
+	if err != nil {
+		fmt.Printf("Error getting room ID: %v\n", err)
+		return
+	}
 	fmt.Printf("Room created with ID %d.\n", id)
 }
 

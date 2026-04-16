@@ -10,3 +10,7 @@ build/
 *.test
 *.out
 .DS_Store
+*.original.md
+vendor/
+.idea/
+.vscode/
