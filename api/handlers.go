@@ -85,6 +85,88 @@ func nullStr(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: true}
 }
 
+func nullStrVal(ns sql.NullString) interface{} {
+	if ns.Valid {
+		return ns.String
+	}
+	return nil
+}
+
+func nullTimeVal(nt sql.NullTime) interface{} {
+	if nt.Valid {
+		return nt.Time.Format("2006-01-02 15:04:05")
+	}
+	return nil
+}
+
+func nullIntVal(ni sql.NullInt32) interface{} {
+	if ni.Valid {
+		return ni.Int32
+	}
+	return nil
+}
+
+func roomToMap(room db.Room) map[string]interface{} {
+	return map[string]interface{}{
+		"room_id":         room.RoomID,
+		"room_number":     room.RoomNumber,
+		"room_type":       string(room.RoomType),
+		"price_per_night": room.PricePerNight,
+		"max_occupancy":   room.MaxOccupancy,
+	}
+}
+
+func customerToMap(c db.Customer) map[string]interface{} {
+	return map[string]interface{}{
+		"customer_id":    c.CustomerID,
+		"first_name":     c.FirstName,
+		"last_name":      c.LastName,
+		"email":          c.Email,
+		"phone":          c.Phone,
+		"address":        nullStrVal(c.Address),
+		"loyalty_points": c.LoyaltyPoints,
+		"created_at":     nullTimeVal(c.CreatedAt),
+	}
+}
+
+func reservationToMap(r db.Reservationwithprice) map[string]interface{} {
+	return map[string]interface{}{
+		"reservation_id":     r.ReservationID,
+		"customer_id":        r.CustomerID,
+		"room_id":            r.RoomID,
+		"staff_id":           nullIntVal(r.StaffID),
+		"check_in_date":      r.CheckInDate.Format("2006-01-02"),
+		"check_out_date":     r.CheckOutDate.Format("2006-01-02"),
+		"number_of_guests":   r.NumberOfGuests,
+		"status":             string(r.Status),
+		"booking_date":       r.BookingDate.Format("2006-01-02 15:04:05"),
+		"room_number":        r.RoomNumber,
+		"room_type":          string(r.RoomType),
+		"price_per_night":    r.PricePerNight,
+		"nights":             r.Nights,
+		"total_price":        r.TotalPrice,
+		"customer_first_name": r.CustomerFirstName,
+		"customer_last_name":  r.CustomerLastName,
+		"customer_email":      r.CustomerEmail,
+		"payment_status":      string(r.PaymentStatus),
+	}
+}
+
+func paymentToMap(p db.Payment) map[string]interface{} {
+	return map[string]interface{}{
+		"payment_id":      p.PaymentID,
+		"reservation_id":  p.ReservationID,
+		"amount":          p.Amount,
+		"payment_date":    p.PaymentDate.Format("2006-01-02 15:04:05"),
+		"method":          string(p.Method),
+		"transaction_id":  nullStrVal(p.TransactionID),
+		"status":          string(p.Status),
+		"billing_name":    p.BillingName,
+		"billing_email":   p.BillingEmail,
+		"billing_address": nullStrVal(p.BillingAddress),
+	}
+}
+
 // ========== HANDLER IMPLEMENTATIONS ==========
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -260,7 +342,11 @@ func ListAvailableRoomsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(rooms)
+	result := make([]map[string]interface{}, len(rooms))
+	for i, room := range rooms {
+		result[i] = roomToMap(room)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func CreateReservationHandler(w http.ResponseWriter, r *http.Request) {
@@ -382,7 +468,11 @@ func GetMyReservationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(reservations)
+	result := make([]map[string]interface{}, len(reservations))
+	for i, res := range reservations {
+		result[i] = reservationToMap(res)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func CancelReservationHandler(w http.ResponseWriter, r *http.Request) {
@@ -408,10 +498,7 @@ func CancelReservationHandler(w http.ResponseWriter, r *http.Request) {
 	// Check for existing payment and refund if needed
 	payment, pErr := queries.GetPaymentByReservation(r.Context(), int32(resID))
 	if pErr == nil && payment.Status == db.PaymentStatusCompleted {
-		// Check if not already refunded
-		if payment.Status != db.PaymentStatusRefunded {
-			_ = queries.RefundPayment(r.Context(), int32(resID))
-		}
+		_ = queries.RefundPayment(r.Context(), int32(resID))
 	}
 
 	err = queries.CancelReservation(r.Context(), db.CancelReservationParams{
@@ -557,9 +644,9 @@ func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
 		"last_name":      customer.LastName,
 		"email":          customer.Email,
 		"phone":          customer.Phone,
-		"address":        customer.Address.String,
+		"address":        nullStrVal(customer.Address),
 		"loyalty_points": customer.LoyaltyPoints,
-		"created_at":     customer.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		"created_at":     nullTimeVal(customer.CreatedAt),
 	})
 }
 
@@ -570,7 +657,11 @@ func ListReservationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(reservations)
+	result := make([]map[string]interface{}, len(reservations))
+	for i, res := range reservations {
+		result[i] = reservationToMap(res)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func UpdateStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -626,7 +717,11 @@ func ListRoomsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(rooms)
+	result := make([]map[string]interface{}, len(rooms))
+	for i, room := range rooms {
+		result[i] = roomToMap(room)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func CreateRoomHandler(w http.ResponseWriter, r *http.Request) {
@@ -729,7 +824,11 @@ func ListCustomersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(customers)
+	result := make([]map[string]interface{}, len(customers))
+	for i, c := range customers {
+		result[i] = customerToMap(c)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func SearchCustomersHandler(w http.ResponseWriter, r *http.Request) {
@@ -753,7 +852,11 @@ func SearchCustomersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(customers)
+	result := make([]map[string]interface{}, len(customers))
+	for i, c := range customers {
+		result[i] = customerToMap(c)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func ListPaymentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -763,7 +866,11 @@ func ListPaymentsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(payments)
+	result := make([]map[string]interface{}, len(payments))
+	for i, p := range payments {
+		result[i] = paymentToMap(p)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 func GetRevenueHandler(w http.ResponseWriter, r *http.Request) {

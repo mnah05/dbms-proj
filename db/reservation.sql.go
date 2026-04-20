@@ -16,8 +16,8 @@ UPDATE Reservation SET status = 'cancelled' WHERE reservation_id = ? AND custome
 `
 
 type CancelReservationParams struct {
-	ReservationID int32
-	CustomerID    int32
+	ReservationID int32 `json:"reservation_id"`
+	CustomerID    int32 `json:"customer_id"`
 }
 
 func (q *Queries) CancelReservation(ctx context.Context, arg CancelReservationParams) error {
@@ -34,9 +34,9 @@ FOR UPDATE
 `
 
 type CheckRoomAvailabilityForUpdateParams struct {
-	RoomID       int32
-	CheckOutDate time.Time
-	CheckInDate  time.Time
+	RoomID       int32     `json:"room_id"`
+	CheckOutDate time.Time `json:"check_out_date"`
+	CheckInDate  time.Time `json:"check_in_date"`
 }
 
 func (q *Queries) CheckRoomAvailabilityForUpdate(ctx context.Context, arg CheckRoomAvailabilityForUpdateParams) (int64, error) {
@@ -52,13 +52,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateReservationParams struct {
-	CustomerID     int32
-	RoomID         int32
-	StaffID        sql.NullInt32
-	CheckInDate    time.Time
-	CheckOutDate   time.Time
-	NumberOfGuests int32
-	Status         ReservationStatus
+	CustomerID     int32             `json:"customer_id"`
+	RoomID         int32             `json:"room_id"`
+	StaffID        sql.NullInt32     `json:"staff_id"`
+	CheckInDate    time.Time         `json:"check_in_date"`
+	CheckOutDate   time.Time         `json:"check_out_date"`
+	NumberOfGuests int32             `json:"number_of_guests"`
+	Status         ReservationStatus `json:"status"`
 }
 
 func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationParams) (sql.Result, error) {
@@ -95,7 +95,7 @@ func (q *Queries) GetReservationByID(ctx context.Context, reservationID int32) (
 }
 
 const listAllReservations = `-- name: ListAllReservations :many
-SELECT reservation_id, customer_id, room_id, staff_id, check_in_date, check_out_date, number_of_guests, status, booking_date, room_number, room_type, price_per_night, nights, total_price FROM ReservationWithPrice ORDER BY booking_date DESC
+SELECT reservation_id, customer_id, room_id, staff_id, check_in_date, check_out_date, number_of_guests, status, booking_date, room_number, room_type, price_per_night, nights, total_price, customer_first_name, customer_last_name, customer_email, payment_status FROM ReservationWithPrice ORDER BY booking_date DESC
 `
 
 func (q *Queries) ListAllReservations(ctx context.Context) ([]Reservationwithprice, error) {
@@ -122,6 +122,10 @@ func (q *Queries) ListAllReservations(ctx context.Context) ([]Reservationwithpri
 			&i.PricePerNight,
 			&i.Nights,
 			&i.TotalPrice,
+			&i.CustomerFirstName,
+			&i.CustomerLastName,
+			&i.CustomerEmail,
+			&i.PaymentStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -137,7 +141,7 @@ func (q *Queries) ListAllReservations(ctx context.Context) ([]Reservationwithpri
 }
 
 const listReservationsByCustomer = `-- name: ListReservationsByCustomer :many
-SELECT reservation_id, customer_id, room_id, staff_id, check_in_date, check_out_date, number_of_guests, status, booking_date, room_number, room_type, price_per_night, nights, total_price FROM ReservationWithPrice WHERE customer_id = ? ORDER BY booking_date DESC
+SELECT reservation_id, customer_id, room_id, staff_id, check_in_date, check_out_date, number_of_guests, status, booking_date, room_number, room_type, price_per_night, nights, total_price, customer_first_name, customer_last_name, customer_email, payment_status FROM ReservationWithPrice WHERE customer_id = ? ORDER BY booking_date DESC
 `
 
 func (q *Queries) ListReservationsByCustomer(ctx context.Context, customerID int32) ([]Reservationwithprice, error) {
@@ -164,6 +168,10 @@ func (q *Queries) ListReservationsByCustomer(ctx context.Context, customerID int
 			&i.PricePerNight,
 			&i.Nights,
 			&i.TotalPrice,
+			&i.CustomerFirstName,
+			&i.CustomerLastName,
+			&i.CustomerEmail,
+			&i.PaymentStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -179,7 +187,7 @@ func (q *Queries) ListReservationsByCustomer(ctx context.Context, customerID int
 }
 
 const listReservationsByStatus = `-- name: ListReservationsByStatus :many
-SELECT reservation_id, customer_id, room_id, staff_id, check_in_date, check_out_date, number_of_guests, status, booking_date, room_number, room_type, price_per_night, nights, total_price FROM ReservationWithPrice WHERE status = ? ORDER BY booking_date DESC
+SELECT reservation_id, customer_id, room_id, staff_id, check_in_date, check_out_date, number_of_guests, status, booking_date, room_number, room_type, price_per_night, nights, total_price, customer_first_name, customer_last_name, customer_email, payment_status FROM ReservationWithPrice WHERE status = ? ORDER BY booking_date DESC
 `
 
 func (q *Queries) ListReservationsByStatus(ctx context.Context, status ReservationStatus) ([]Reservationwithprice, error) {
@@ -206,6 +214,10 @@ func (q *Queries) ListReservationsByStatus(ctx context.Context, status Reservati
 			&i.PricePerNight,
 			&i.Nights,
 			&i.TotalPrice,
+			&i.CustomerFirstName,
+			&i.CustomerLastName,
+			&i.CustomerEmail,
+			&i.PaymentStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -225,8 +237,8 @@ UPDATE Reservation SET status = ? WHERE reservation_id = ?
 `
 
 type UpdateReservationStatusParams struct {
-	Status        ReservationStatus
-	ReservationID int32
+	Status        ReservationStatus `json:"status"`
+	ReservationID int32             `json:"reservation_id"`
 }
 
 func (q *Queries) UpdateReservationStatus(ctx context.Context, arg UpdateReservationStatusParams) error {

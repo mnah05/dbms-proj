@@ -15,12 +15,12 @@ INSERT INTO Customer (first_name, last_name, email, phone, address, password_has
 `
 
 type CreateCustomerParams struct {
-	FirstName    string
-	LastName     string
-	Email        string
-	Phone        string
-	Address      sql.NullString
-	PasswordHash string
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        string         `json:"email"`
+	Phone        string         `json:"phone"`
+	Address      sql.NullString `json:"address"`
+	PasswordHash string         `json:"password_hash"`
 }
 
 func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) (sql.Result, error) {
@@ -118,8 +118,8 @@ SELECT customer_id, first_name, last_name, email, phone, address, loyalty_points
 `
 
 type SearchCustomersByNameParams struct {
-	FirstName string
-	LastName  string
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }
 
 func (q *Queries) SearchCustomersByName(ctx context.Context, arg SearchCustomersByNameParams) ([]Customer, error) {
@@ -160,8 +160,8 @@ UPDATE Customer SET loyalty_points = ? WHERE customer_id = ?
 `
 
 type UpdateCustomerLoyaltyPointsParams struct {
-	LoyaltyPoints int32
-	CustomerID    int32
+	LoyaltyPoints int32 `json:"loyalty_points"`
+	CustomerID    int32 `json:"customer_id"`
 }
 
 func (q *Queries) UpdateCustomerLoyaltyPoints(ctx context.Context, arg UpdateCustomerLoyaltyPointsParams) error {

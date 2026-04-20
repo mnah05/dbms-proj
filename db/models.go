@@ -32,8 +32,8 @@ func (e *PaymentMethod) Scan(src interface{}) error {
 }
 
 type NullPaymentMethod struct {
-	PaymentMethod PaymentMethod
-	Valid         bool // Valid is true if PaymentMethod is not NULL
+	PaymentMethod PaymentMethod `json:"payment_method"`
+	Valid         bool          `json:"valid"` // Valid is true if PaymentMethod is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -76,8 +76,8 @@ func (e *PaymentStatus) Scan(src interface{}) error {
 }
 
 type NullPaymentStatus struct {
-	PaymentStatus PaymentStatus
-	Valid         bool // Valid is true if PaymentStatus is not NULL
+	PaymentStatus PaymentStatus `json:"payment_status"`
+	Valid         bool          `json:"valid"` // Valid is true if PaymentStatus is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -121,8 +121,8 @@ func (e *ReservationStatus) Scan(src interface{}) error {
 }
 
 type NullReservationStatus struct {
-	ReservationStatus ReservationStatus
-	Valid             bool // Valid is true if ReservationStatus is not NULL
+	ReservationStatus ReservationStatus `json:"reservation_status"`
+	Valid             bool              `json:"valid"` // Valid is true if ReservationStatus is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -165,8 +165,8 @@ func (e *RoomRoomType) Scan(src interface{}) error {
 }
 
 type NullRoomRoomType struct {
-	RoomRoomType RoomRoomType
-	Valid        bool // Valid is true if RoomRoomType is not NULL
+	RoomRoomType RoomRoomType `json:"room_room_type"`
+	Valid        bool         `json:"valid"` // Valid is true if RoomRoomType is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -208,8 +208,8 @@ func (e *StaffRole) Scan(src interface{}) error {
 }
 
 type NullStaffRole struct {
-	StaffRole StaffRole
-	Valid     bool // Valid is true if StaffRole is not NULL
+	StaffRole StaffRole `json:"staff_role"`
+	Valid     bool      `json:"valid"` // Valid is true if StaffRole is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -231,85 +231,89 @@ func (ns NullStaffRole) Value() (driver.Value, error) {
 }
 
 type Customer struct {
-	CustomerID    int32
-	FirstName     string
-	LastName      string
-	Email         string
-	Phone         string
-	Address       sql.NullString
-	LoyaltyPoints int32
-	CreatedAt     sql.NullTime
-	PasswordHash  string
+	CustomerID    int32          `json:"customer_id"`
+	FirstName     string         `json:"first_name"`
+	LastName      string         `json:"last_name"`
+	Email         string         `json:"email"`
+	Phone         string         `json:"phone"`
+	Address       sql.NullString `json:"address"`
+	LoyaltyPoints int32          `json:"loyalty_points"`
+	CreatedAt     sql.NullTime   `json:"created_at"`
+	PasswordHash  string         `json:"password_hash"`
 }
 
 type Payment struct {
-	PaymentID      int32
-	ReservationID  int32
-	Amount         string
-	PaymentDate    time.Time
-	Method         PaymentMethod
-	TransactionID  sql.NullString
-	Status         PaymentStatus
-	BillingName    string
-	BillingEmail   string
-	BillingAddress sql.NullString
+	PaymentID      int32          `json:"payment_id"`
+	ReservationID  int32          `json:"reservation_id"`
+	Amount         string         `json:"amount"`
+	PaymentDate    time.Time      `json:"payment_date"`
+	Method         PaymentMethod  `json:"method"`
+	TransactionID  sql.NullString `json:"transaction_id"`
+	Status         PaymentStatus  `json:"status"`
+	BillingName    string         `json:"billing_name"`
+	BillingEmail   string         `json:"billing_email"`
+	BillingAddress sql.NullString `json:"billing_address"`
 }
 
 type Reservation struct {
-	ReservationID  int32
-	CustomerID     int32
-	RoomID         int32
-	StaffID        sql.NullInt32
-	CheckInDate    time.Time
-	CheckOutDate   time.Time
-	NumberOfGuests int32
-	Status         ReservationStatus
-	BookingDate    time.Time
+	ReservationID  int32             `json:"reservation_id"`
+	CustomerID     int32             `json:"customer_id"`
+	RoomID         int32             `json:"room_id"`
+	StaffID        sql.NullInt32     `json:"staff_id"`
+	CheckInDate    time.Time         `json:"check_in_date"`
+	CheckOutDate   time.Time         `json:"check_out_date"`
+	NumberOfGuests int32             `json:"number_of_guests"`
+	Status         ReservationStatus `json:"status"`
+	BookingDate    time.Time         `json:"booking_date"`
 }
 
 type Reservationwithprice struct {
-	ReservationID  int32
-	CustomerID     int32
-	RoomID         int32
-	StaffID        sql.NullInt32
-	CheckInDate    time.Time
-	CheckOutDate   time.Time
-	NumberOfGuests int32
-	Status         ReservationStatus
-	BookingDate    time.Time
-	RoomNumber     string
-	RoomType       RoomRoomType
-	PricePerNight  string
-	Nights         int32
-	TotalPrice     float64
+	ReservationID     int32             `json:"reservation_id"`
+	CustomerID        int32             `json:"customer_id"`
+	RoomID            int32             `json:"room_id"`
+	StaffID           sql.NullInt32     `json:"staff_id"`
+	CheckInDate       time.Time         `json:"check_in_date"`
+	CheckOutDate      time.Time         `json:"check_out_date"`
+	NumberOfGuests    int32             `json:"number_of_guests"`
+	Status            ReservationStatus `json:"status"`
+	BookingDate       time.Time         `json:"booking_date"`
+	RoomNumber        string            `json:"room_number"`
+	RoomType          RoomRoomType      `json:"room_type"`
+	PricePerNight     string            `json:"price_per_night"`
+	Nights            int32             `json:"nights"`
+	TotalPrice        float64           `json:"total_price"`
+	CustomerFirstName string            `json:"customer_first_name"`
+	CustomerLastName  string            `json:"customer_last_name"`
+	CustomerEmail     string            `json:"customer_email"`
+	PaymentStatus     PaymentStatus     `json:"payment_status"`
 }
 
 type Room struct {
-	RoomID        int32
-	RoomNumber    string
-	RoomType      RoomRoomType
-	PricePerNight string
-	MaxOccupancy  int32
-	CreatedAt     sql.NullTime
+	RoomID        int32        `json:"room_id"`
+	RoomNumber    string       `json:"room_number"`
+	RoomType      RoomRoomType `json:"room_type"`
+	PricePerNight string       `json:"price_per_night"`
+	MaxOccupancy  int32        `json:"max_occupancy"`
+	CreatedAt     sql.NullTime `json:"created_at"`
 }
 
 type Staff struct {
-	StaffID      int32
-	FirstName    string
-	LastName     string
-	Role         StaffRole
-	Email        string
-	Phone        sql.NullString
-	PasswordHash string
-	IsActive     bool
-	CreatedAt    sql.NullTime
+	StaffID      int32          `json:"staff_id"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Role         StaffRole      `json:"role"`
+	Email        string         `json:"email"`
+	Phone        sql.NullString `json:"phone"`
+	PasswordHash string         `json:"password_hash"`
+	IsActive     bool           `json:"is_active"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
 }
 
 type User struct {
-	ID           int32
-	Username     string
-	Email        string
-	PasswordHash string
-	CreatedAt    sql.NullTime
-	UpdatedAt    sql.NullTime
+	ID           int32        `json:"id"`
+	Username     string       `json:"username"`
+	Email        string       `json:"email"`
+	PasswordHash string       `json:"password_hash"`
+	CreatedAt    sql.NullTime `json:"created_at"`
+	UpdatedAt    sql.NullTime `json:"updated_at"`
 }

@@ -16,14 +16,14 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreatePaymentParams struct {
-	ReservationID  int32
-	Amount         string
-	Method         PaymentMethod
-	TransactionID  sql.NullString
-	Status         PaymentStatus
-	BillingName    string
-	BillingEmail   string
-	BillingAddress sql.NullString
+	ReservationID  int32          `json:"reservation_id"`
+	Amount         string         `json:"amount"`
+	Method         PaymentMethod  `json:"method"`
+	TransactionID  sql.NullString `json:"transaction_id"`
+	Status         PaymentStatus  `json:"status"`
+	BillingName    string         `json:"billing_name"`
+	BillingEmail   string         `json:"billing_email"`
+	BillingAddress sql.NullString `json:"billing_address"`
 }
 
 func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (sql.Result, error) {

@@ -16,10 +16,10 @@ INSERT INTO Room (room_number, room_type, price_per_night, max_occupancy) VALUES
 `
 
 type CreateRoomParams struct {
-	RoomNumber    string
-	RoomType      RoomRoomType
-	PricePerNight string
-	MaxOccupancy  int32
+	RoomNumber    string       `json:"room_number"`
+	RoomType      RoomRoomType `json:"room_type"`
+	PricePerNight string       `json:"price_per_night"`
+	MaxOccupancy  int32        `json:"max_occupancy"`
 }
 
 func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (sql.Result, error) {
@@ -42,8 +42,8 @@ ORDER BY room_number
 `
 
 type GetAvailableRoomsParams struct {
-	CheckOutDate time.Time
-	CheckInDate  time.Time
+	CheckOutDate time.Time `json:"check_out_date"`
+	CheckInDate  time.Time `json:"check_in_date"`
 }
 
 func (q *Queries) GetAvailableRooms(ctx context.Context, arg GetAvailableRoomsParams) ([]Room, error) {
@@ -88,9 +88,9 @@ ORDER BY room_number
 `
 
 type GetAvailableRoomsByTypeParams struct {
-	RoomType     RoomRoomType
-	CheckOutDate time.Time
-	CheckInDate  time.Time
+	RoomType     RoomRoomType `json:"room_type"`
+	CheckOutDate time.Time    `json:"check_out_date"`
+	CheckInDate  time.Time    `json:"check_in_date"`
 }
 
 func (q *Queries) GetAvailableRoomsByType(ctx context.Context, arg GetAvailableRoomsByTypeParams) ([]Room, error) {
@@ -180,11 +180,11 @@ UPDATE Room SET room_number = ?, room_type = ?, price_per_night = ?, max_occupan
 `
 
 type UpdateRoomParams struct {
-	RoomNumber    string
-	RoomType      RoomRoomType
-	PricePerNight string
-	MaxOccupancy  int32
-	RoomID        int32
+	RoomNumber    string       `json:"room_number"`
+	RoomType      RoomRoomType `json:"room_type"`
+	PricePerNight string       `json:"price_per_night"`
+	MaxOccupancy  int32        `json:"max_occupancy"`
+	RoomID        int32        `json:"room_id"`
 }
 
 func (q *Queries) UpdateRoom(ctx context.Context, arg UpdateRoomParams) error {
