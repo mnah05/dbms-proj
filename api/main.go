@@ -11,9 +11,9 @@ import (
 	"dbms-proj/db"
 	"dbms-proj/middleware"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 )
 
@@ -45,7 +45,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer dbConn.Close()
+	defer func() { _ = dbConn.Close() }()
 
 	// Configure connection pool
 	dbConn.SetMaxOpenConns(25)

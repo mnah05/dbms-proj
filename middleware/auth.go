@@ -10,6 +10,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type contextKey string
+
+const (
+	UserIDKey     contextKey = "userID"
+	IsAdminKey    contextKey = "isAdmin"
+	IsCustomerKey contextKey = "isCustomer"
+	NameKey       contextKey = "name"
+)
+
 var jwtSecret = []byte(getJWTSecret())
 
 func getJWTSecret() string {
@@ -83,10 +92,10 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Add claims to context
-		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
-		ctx = context.WithValue(ctx, "isAdmin", claims.IsAdmin)
-		ctx = context.WithValue(ctx, "isCustomer", claims.IsCustomer)
-		ctx = context.WithValue(ctx, "name", claims.Name)
+ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+	ctx = context.WithValue(ctx, IsAdminKey, claims.IsAdmin)
+	ctx = context.WithValue(ctx, IsCustomerKey, claims.IsCustomer)
+	ctx = context.WithValue(ctx, NameKey, claims.Name)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -94,7 +103,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 func AdminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		isAdmin, ok := r.Context().Value("isAdmin").(bool)
+		isAdmin, ok := r.Context().Value(IsAdminKey).(bool)
 		if !ok || !isAdmin {
 			http.Error(w, "Admin access required", http.StatusForbidden)
 			return

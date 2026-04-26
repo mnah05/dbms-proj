@@ -59,7 +59,7 @@ func main() {
 		fmt.Printf("Failed to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	defer dbConn.Close()
+	defer func() { _ = dbConn.Close() }()
 
 	// Configure connection pool
 	dbConn.SetMaxOpenConns(25)
@@ -480,7 +480,7 @@ func bookRoom(s session) {
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
@@ -710,7 +710,7 @@ func makePayment(s session) {
 
 	nights := int(res.CheckOutDate.Sub(res.CheckInDate).Hours() / 24)
 	if nights <= 0 {
-		nights = 1
+		nights = 1 //nolint:ineffassign
 	}
 
 	promptPayment(s, resID, room.PricePerNight, res.CheckInDate, res.CheckOutDate)

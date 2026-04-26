@@ -131,20 +131,20 @@ func customerToMap(c db.Customer) map[string]interface{} {
 
 func reservationToMap(r db.Reservationwithprice) map[string]interface{} {
 	return map[string]interface{}{
-		"reservation_id":     r.ReservationID,
-		"customer_id":        r.CustomerID,
-		"room_id":            r.RoomID,
-		"staff_id":           nullIntVal(r.StaffID),
-		"check_in_date":      r.CheckInDate.Format("2006-01-02"),
-		"check_out_date":     r.CheckOutDate.Format("2006-01-02"),
-		"number_of_guests":   r.NumberOfGuests,
-		"status":             string(r.Status),
-		"booking_date":       r.BookingDate.Format("2006-01-02 15:04:05"),
-		"room_number":        r.RoomNumber,
-		"room_type":          string(r.RoomType),
-		"price_per_night":    r.PricePerNight,
-		"nights":             r.Nights,
-		"total_price":        r.TotalPrice,
+		"reservation_id":      r.ReservationID,
+		"customer_id":         r.CustomerID,
+		"room_id":             r.RoomID,
+		"staff_id":            nullIntVal(r.StaffID),
+		"check_in_date":       r.CheckInDate.Format("2006-01-02"),
+		"check_out_date":      r.CheckOutDate.Format("2006-01-02"),
+		"number_of_guests":    r.NumberOfGuests,
+		"status":              string(r.Status),
+		"booking_date":        r.BookingDate.Format("2006-01-02 15:04:05"),
+		"room_number":         r.RoomNumber,
+		"room_type":           string(r.RoomType),
+		"price_per_night":     r.PricePerNight,
+		"nights":              r.Nights,
+		"total_price":         r.TotalPrice,
 		"customer_first_name": r.CustomerFirstName,
 		"customer_last_name":  r.CustomerLastName,
 		"customer_email":      r.CustomerEmail,
@@ -223,10 +223,13 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"customer_id": id,
 		"message":     "Registration successful",
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func CustomerLoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -256,7 +259,7 @@ func CustomerLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": token,
 		"customer": map[string]interface{}{
 			"customer_id":    customer.CustomerID,
@@ -265,7 +268,10 @@ func CustomerLoginHandler(w http.ResponseWriter, r *http.Request) {
 			"email":          customer.Email,
 			"loyalty_points": customer.LoyaltyPoints,
 		},
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func AdminLoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -295,7 +301,7 @@ func AdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"token": token,
 		"staff": map[string]interface{}{
 			"staff_id":   staff.StaffID,
@@ -304,7 +310,10 @@ func AdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 			"email":      staff.Email,
 			"role":       staff.Role,
 		},
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func ListAvailableRoomsHandler(w http.ResponseWriter, r *http.Request) {
@@ -346,11 +355,13 @@ func ListAvailableRoomsHandler(w http.ResponseWriter, r *http.Request) {
 	for i, room := range rooms {
 		result[i] = roomToMap(room)
 	}
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func CreateReservationHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(int32)
+	userID := r.Context().Value(middleware.UserIDKey).(int32)
 
 	var req CreateReservationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -384,7 +395,7 @@ func CreateReservationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
@@ -446,7 +457,7 @@ func CreateReservationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"reservation_id": resID,
 		"room_number":    room.RoomNumber,
 		"room_type":      room.RoomType,
@@ -456,11 +467,14 @@ func CreateReservationHandler(w http.ResponseWriter, r *http.Request) {
 		"total_price":    total,
 		"status":         "pending",
 		"message":        "Reservation created. Make payment to confirm.",
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func GetMyReservationsHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(int32)
+	userID := r.Context().Value(middleware.UserIDKey).(int32)
 
 	reservations, err := queries.ListReservationsByCustomer(r.Context(), userID)
 	if err != nil {
@@ -472,11 +486,13 @@ func GetMyReservationsHandler(w http.ResponseWriter, r *http.Request) {
 	for i, res := range reservations {
 		result[i] = reservationToMap(res)
 	}
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func CancelReservationHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(int32)
+	userID := r.Context().Value(middleware.UserIDKey).(int32)
 	resIDStr := chi.URLParam(r, "id")
 	resID, err := strconv.ParseInt(resIDStr, 10, 32)
 	if err != nil {
@@ -510,13 +526,15 @@ func CancelReservationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "Reservation cancelled successfully",
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func CreatePaymentHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(int32)
+	userID := r.Context().Value(middleware.UserIDKey).(int32)
 	resIDStr := chi.URLParam(r, "id")
 	resID, err := strconv.ParseInt(resIDStr, 10, 32)
 	if err != nil {
@@ -621,16 +639,18 @@ func CreatePaymentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":       "Payment completed successfully",
 		"total":         total,
 		"nights":        nights,
 		"points_earned": points,
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(int32)
+	userID := r.Context().Value(middleware.UserIDKey).(int32)
 
 	customer, err := queries.GetCustomerByID(r.Context(), userID)
 	if err != nil {
@@ -638,7 +658,7 @@ func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"customer_id":    customer.CustomerID,
 		"first_name":     customer.FirstName,
 		"last_name":      customer.LastName,
@@ -647,7 +667,9 @@ func GetProfileHandler(w http.ResponseWriter, r *http.Request) {
 		"address":        nullStrVal(customer.Address),
 		"loyalty_points": customer.LoyaltyPoints,
 		"created_at":     nullTimeVal(customer.CreatedAt),
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func ListReservationsHandler(w http.ResponseWriter, r *http.Request) {
@@ -661,7 +683,9 @@ func ListReservationsHandler(w http.ResponseWriter, r *http.Request) {
 	for i, res := range reservations {
 		result[i] = reservationToMap(res)
 	}
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func UpdateStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -705,9 +729,11 @@ func UpdateStatusHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": fmt.Sprintf("Reservation #%d status updated to %s", resID, status),
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func ListRoomsHandler(w http.ResponseWriter, r *http.Request) {
@@ -721,7 +747,9 @@ func ListRoomsHandler(w http.ResponseWriter, r *http.Request) {
 	for i, room := range rooms {
 		result[i] = roomToMap(room)
 	}
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func CreateRoomHandler(w http.ResponseWriter, r *http.Request) {
@@ -764,10 +792,12 @@ func CreateRoomHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"room_id": id,
 		"message": "Room created successfully",
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func UpdateRoomHandler(w http.ResponseWriter, r *http.Request) {
@@ -812,9 +842,11 @@ func UpdateRoomHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"message": "Room updated successfully",
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func ListCustomersHandler(w http.ResponseWriter, r *http.Request) {
@@ -828,7 +860,9 @@ func ListCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	for i, c := range customers {
 		result[i] = customerToMap(c)
 	}
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func SearchCustomersHandler(w http.ResponseWriter, r *http.Request) {
@@ -856,7 +890,9 @@ func SearchCustomersHandler(w http.ResponseWriter, r *http.Request) {
 	for i, c := range customers {
 		result[i] = customerToMap(c)
 	}
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func ListPaymentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -870,7 +906,9 @@ func ListPaymentsHandler(w http.ResponseWriter, r *http.Request) {
 	for i, p := range payments {
 		result[i] = paymentToMap(p)
 	}
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 func GetRevenueHandler(w http.ResponseWriter, r *http.Request) {
@@ -890,7 +928,9 @@ func GetRevenueHandler(w http.ResponseWriter, r *http.Request) {
 		revenue = fmt.Sprintf("%v", v)
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"total_revenue": revenue,
-	})
+	}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
