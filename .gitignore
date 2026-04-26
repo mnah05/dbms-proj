@@ -17,4 +17,5 @@ vendor/
 __pycache__/
 *.pyc
 *.pyo
-.ruff_cache/
+.ruff_cache//api
+/cli
