@@ -1,5 +1,5 @@
 node_modules/
-frontend/dist/
+web/frontend/dist/
 dist/
 build/
 *.exe
@@ -17,3 +17,4 @@ vendor/
 __pycache__/
 *.pyc
 *.pyo
+.ruff_cache/
